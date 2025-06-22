@@ -46,7 +46,11 @@ def analyze():
     return jsonify({"sentences": analyzed_sentences})
 
 def analyze_sentence_with_hf(sentence):
-    # Function to analyze a sentence using Hugging Face Inference API
+    """
+    Analyze a sentence for difficulty and tone using Hugging Face Inference API.
+    Example input: { "sentence": "The quick brown fox jumps over the lazy dog." }
+    Example response: { "difficulty": "easy", "tone": "friendly" }
+    """
 
     prompt = (
         f"Analyze the following sentence for difficulty and tone.\n"
@@ -77,6 +81,46 @@ def analyze_sentence_with_hf(sentence):
         }
     return analysis
 
+@app.route('/rewrite', methods=['POST'])
+def rewrite():
+    """
+    Rewrite a sentence to be simpler and more friendly.
+    Example input: { "sentence": "Can you also tell me how much utilities per month will be?" }
+    Example response:
+    {
+        "original": "Can you also tell me how much utilities per month will be?",
+        "rewritten_sentence": "Could you please estimate my monthly utility bills for me?"
+    }
+    """
+    data = request.get_json()
+    sentence = data.get('sentence', '')
+    if not sentence:
+        return jsonify({"error": "No sentence provided"}), 400
+    
+    prompt = (
+        f"Rewrite the following sentence to be simpler and more friendly:\n"
+        f"Sentence: \"{sentence}\"\n"
+        f"Output only the rewritten sentence."
+    )
+
+    try:
+        completion = client.chat.completions.create(
+            model="mistralai/Mistral-7B-Instruct-v0.2",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+        )
+        rewritten_sentence = completion.choices[0].message.content.strip()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    return jsonify({
+        "original": sentence,
+        "rewritten_sentence": rewritten_sentence
+        })
 
 if __name__ == '__main__':
     app.run(debug=True)
