@@ -23,7 +23,7 @@ def split_sentences(text):
 
 @app.route('/analyze', methods=['POST', 'OPTIONS'])
 def analyze():
-
+    app.logger.info(f"[analyze] Perplexity status: {resp.status_code}")
     if request.method == 'OPTIONS':
         # cors preflight request
         return '', 200
@@ -94,7 +94,6 @@ def analyze():
     }
     resp = requests.post(PERPLEXITY_ENDPOINT, json=body, headers=headers)
 
-    app.logger.info(f"[analyze] Perplexity status: {resp.status_code}")
     app.logger.info(f"[analyze] Perplexity response: {resp.text}")
 
     if not resp.ok:
