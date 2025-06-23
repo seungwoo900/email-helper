@@ -21,7 +21,7 @@ CORS(app)  # Enable CORS for all routes
 def split_sentences(text):
     return [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
 
-@app.route('/analyze', methods=['POST'])
+@app.route('/analyze', methods=['POST', 'OPTIONS'])
 def analyze():
     data = request.get_json() 
     raw = data.get('text', '')
