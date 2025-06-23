@@ -1,15 +1,18 @@
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient
-import os, re, json
+import os, re, json, requests
 
 load_dotenv()  # Load environment variables from .env file
-HF_API_TOKEN = os.getenv('HF_API_TOKEN')
 
-client = InferenceClient(
-    provider='featherless-ai',
-    api_key=HF_API_TOKEN,
-)
+# HF_API_TOKEN = os.getenv('HF_API_TOKEN')
+
+# client = InferenceClient(
+#     provider='featherless-ai',
+#     api_key=HF_API_TOKEN,
+# )
+
+PERPLEXITY_API_KEY = os.getenv('PERPLEXITY_API_KEY')
+PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions"
 
 app = Flask(__name__)
 
@@ -28,7 +31,8 @@ def analyze():
     # Prompt for the model
     prompt = f"""
         You are a professional English-writing assistant for non-native speakers.
-        Read the entire email below and return ONLY valid JSON with this exact structure:
+        Read the entire email below and return ONLY valid JSON with this exact structure, 
+        in the same sentence order unless you recommend a different logical flow:
 
         {{
         "paragraphs": [
@@ -37,7 +41,8 @@ def analyze():
                 {{
                 "original": "<the original sentence>",
                 "corrected": <null or "<grammar-corrected sentence>">,
-                "simplified": <null or "<simplified sentence>">
+                "simplified": <null or "<simplified sentence>">,
+                "reason": <null or "<modification reason, up to 7 words>">
                 }},
                 …
             ]
@@ -46,23 +51,58 @@ def analyze():
         ]
         }}
 
-        Rules for each sentence:
-        1. If the sentence contains any grammatical errors, put the fully corrected sentence in "corrected" and set "simplified" to null.
-        2. If there are no grammatical errors but the sentence is overly formal, stiff, or complex, set "corrected" to null and put the simpler version in "simplified."
-        3. If there are no grammatical errors and the sentence is already simple enough, set both "corrected" and "simplified" to null.
+        Rules:
+        1. You may reorder or delete sentences to improve overall flow.
+        2. **If you delete a sentence**, still include it with:
+        - `"corrected": null`
+        - `"simplified": null`
+        - a non-null `"reason"` explaining **why** it was removed (e.g. “redundant”).
+        3. If you modify for grammar:
+        - put the fixed sentence in `"corrected"`,
+        - `"simplified": null`,
+        - `"reason"` a detailed note up to 7 words (e.g. “grammar error”).
+        4. If you simplify for clarity or tone:
+        - `"corrected": null`,
+        - put the simpler version in `"simplified"`,
+        - `"reason"` a detailed note up to 7 words (e.g. “too formal”).
+        5. If already correct & concise:
+        - set `"corrected"`, `"simplified"`, `"reason"` all to null.
+        6. Remove all newline (“\\n”) and backslash (“\\”) characters from every field.
+        7. Output **only** the JSON—no extra text.
 
         Email content:
         \"\"\"\n{full_text}\n\"\"\"
+        """
 
-        Output only the JSON. Do not include any explanations, notes, or additional text.
-    """
+    # Call Perplexity API
+    headers = {
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    body = {
+        "model": "sonar",       # Choose Perplexity model
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+    resp = requests.post(PERPLEXITY_ENDPOINT, json=body, headers=headers)
 
-    # Call the model once
-    completion = client.chat.completions.create(
-        model="mistralai/Mistral-7B-Instruct-v0.2",
-        messages=[{"role":"user","content":prompt}],
-    )
-    raw_resp = completion.choices[0].message.content.strip()
+    if not resp.ok:
+        return jsonify({"error": "Perplexity API error", "details": resp.text}), 500
+
+    # extract the AI’s reply
+    raw_resp = resp.json()["choices"][0]["message"]["content"].strip()
+
+        # ——— strip markdown fences if present ———
+    if raw_resp.startswith("```"):
+        parts = raw_resp.split("```")
+        # parts might be ['', 'json\n{...}', '']
+        middle = parts[1] if len(parts) > 2 else parts[0]
+        lines = middle.splitlines()
+        # drop a leading "json" label line if any
+        if lines and lines[0].strip().lower().startswith("json"):
+            lines = lines[1:]
+        raw_resp = "\n".join(lines).strip()
 
     # JSON Parsing
     try:
