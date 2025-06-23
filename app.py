@@ -89,8 +89,15 @@ def analyze():
     }
     resp = requests.post(PERPLEXITY_ENDPOINT, json=body, headers=headers)
 
+    app.logger.info(f"[analyze] Perplexity status: {resp.status_code}")
+    app.logger.info(f"[analyze] Perplexity response: {resp.text}")
+
     if not resp.ok:
-        return jsonify({"error": "Perplexity API error", "details": resp.text}), 500
+        return jsonify({
+            "error": "Perplexity API error",
+            "status_code": resp.status_code,
+            "details": resp.text
+        }), 500
 
     # extract the AI’s reply
     raw_resp = resp.json()["choices"][0]["message"]["content"].strip()
