@@ -7,7 +7,7 @@ export function useAnalyze(text, options) {
   return useQuery({
     queryKey: ['analyze', text],
     queryFn: async () => {
-      const res = await axios.post('/analyze', {text: JSON.stringify(text)})
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/analyze`, {text: JSON.stringify(text)})
       console.log('Response from /analyze:', res.data)
       // res.data === { paragraphs: [ { sentences: […] }, … ] }
       return res.data

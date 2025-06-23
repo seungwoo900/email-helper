@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from dotenv import load_dotenv
 import os, re, json, requests
 
@@ -93,7 +94,7 @@ def analyze():
     # extract the AI’s reply
     raw_resp = resp.json()["choices"][0]["message"]["content"].strip()
 
-        # ——— strip markdown fences if present ———
+    # ——— strip markdown fences if present ———
     if raw_resp.startswith("```"):
         parts = raw_resp.split("```")
         # parts might be ['', 'json\n{...}', '']
