@@ -1,6 +1,6 @@
-import { useState } from "react";
-import SentenceList from './SentenceList';
+import React, { useState } from "react";
 import {useAnalyze} from '../hooks/useTextTuneAPI';
+import EmailPreview from "./EmailPreview";
 
 export default function Editor() {
     const [text, setText] = useState("");
@@ -24,7 +24,11 @@ export default function Editor() {
                 {isLoading ? "Analyzing..." : "Analyze Text"}
             </button>
 
-            {data && <SentenceList sentences={data.sentences} />}
+            {data?.paragraphs && (
+                <div className="mt-6">
+                <EmailPreview paragraphs={data.paragraphs} />
+                </div>
+            )}
         </div>
     )
 }
