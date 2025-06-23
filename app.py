@@ -14,113 +14,68 @@ client = InferenceClient(
 app = Flask(__name__)
 
 def split_sentences(text):
-    # Regular expression to split sentences based on punctuation
-    sentence_endings = r'(?<=[.!?])\s+'
-    sentences = re.split(sentence_endings, text.strip())
-    return [sentence for sentence in sentences if sentence]
+    return [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    data = request.get_json()
-    text = data.get('text', '') # Get the text from the request, if not present, default to empty string
-    sentences = split_sentences(text)
-    analyzed_sentences = []
+    data = request.get_json() 
+    raw = data.get('text', '')
+    try:
+        full_text = json.loads(raw)
+    except:
+        full_text = raw
 
-    for s in sentences:
-        try:
-            analysis = analyze_sentence_with_hf(s)
-        except Exception as e:
-            print(f"Error analyzing sentence '{s}': {e}")
-            analysis = {
-                "difficulty": "unknown",
-                "tone": "unknown",
-                "error": str(e)
-            }
-        
-        analyzed_sentences.append({
-            "sentence": s,
-            "difficulty": analysis.get("difficulty", "unknown"),
-            "tone": analysis.get("tone", "unknown"),
-        })
+    # Prompt for the model
+    prompt = f"""
+        You are a professional English-writing assistant for non-native speakers.
+        Read the entire email below and return ONLY valid JSON with this exact structure:
 
-    return jsonify({"sentences": analyzed_sentences})
+        {{
+        "paragraphs": [
+            {{
+            "sentences": [
+                {{
+                "original": "<the original sentence>",
+                "corrected": <null or "<grammar-corrected sentence>">,
+                "simplified": <null or "<simplified sentence>">
+                }},
+                …
+            ]
+            }},
+            …
+        ]
+        }}
 
-def analyze_sentence_with_hf(sentence):
+        Rules for each sentence:
+        1. If the sentence contains any grammatical errors, put the fully corrected sentence in "corrected" and set "simplified" to null.
+        2. If there are no grammatical errors but the sentence is overly formal, stiff, or complex, set "corrected" to null and put the simpler version in "simplified."
+        3. If there are no grammatical errors and the sentence is already simple enough, set both "corrected" and "simplified" to null.
+
+        Email content:
+        \"\"\"\n{full_text}\n\"\"\"
+
+        Output only the JSON. Do not include any explanations, notes, or additional text.
     """
-    Analyze a sentence for difficulty and tone using Hugging Face Inference API.
-    Example input: { "sentence": "The quick brown fox jumps over the lazy dog." }
-    Example response: { "difficulty": "easy", "tone": "friendly" }
-    """
 
-    prompt = (
-        f"Analyze the following sentence for difficulty and tone.\n"
-        f"Return JSON with keys 'difficulty' (easy, medium, hard) and 'tone' (friendly, neutral, formal).\n"
-        f"Sentence: \"{sentence}\"\n"
-        f"JSON output only."
-    )
-
+    # Call the model once
     completion = client.chat.completions.create(
-                    model="mistralai/Mistral-7B-Instruct-v0.2",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                )
-
-    response = completion.choices[0].message.content.strip()
-
-    try:
-        analysis = json.loads(response)
-    except json.JSONDecodeError:
-        analysis = {
-            "difficulty": "unknown",
-            "tone": "unknown",
-            "error": "Invalid JSON response from model"
-        }
-    return analysis
-
-@app.route('/rewrite', methods=['POST'])
-def rewrite():
-    """
-    Rewrite a sentence to be simpler and more friendly.
-    Example input: { "sentence": "Can you also tell me how much utilities per month will be?" }
-    Example response:
-    {
-        "original": "Can you also tell me how much utilities per month will be?",
-        "rewritten_sentence": "Could you please estimate my monthly utility bills for me?"
-    }
-    """
-    data = request.get_json()
-    sentence = data.get('sentence', '')
-    if not sentence:
-        return jsonify({"error": "No sentence provided"}), 400
-    
-    prompt = (
-        f"Rewrite the following sentence to be simpler and more friendly:\n"
-        f"Sentence: \"{sentence}\"\n"
-        f"Output only the rewritten sentence."
+        model="mistralai/Mistral-7B-Instruct-v0.2",
+        messages=[{"role":"user","content":prompt}],
     )
+    raw_resp = completion.choices[0].message.content.strip()
 
+    # JSON Parsing
     try:
-        completion = client.chat.completions.create(
-            model="mistralai/Mistral-7B-Instruct-v0.2",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-        )
-        rewritten_sentence = completion.choices[0].message.content.strip()
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-    return jsonify({
-        "original": sentence,
-        "rewritten_sentence": rewritten_sentence
-        })
+        result = json.loads(raw_resp)
+    except json.JSONDecodeError:
+        app.logger.error("Failed to parse /analyze response:\n%s", raw_resp)
+        return jsonify({
+            "error": "Invalid JSON from model",
+            "raw": raw_resp
+        }), 500
+
+    # Validate structure
+    return jsonify(result)
 
 if __name__ == '__main__':
     app.run(debug=True)
