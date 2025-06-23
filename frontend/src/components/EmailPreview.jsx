@@ -32,6 +32,13 @@ export default function EmailPreview({ paragraphs = [] }) {
                     {editedText}
                   </p>
                 )}
+
+                {/* Reason, if available */}
+                {s.reason && (
+                  <p className="mt-1 text-sm text-gray-500 italic">
+                    Reason: {s.reason}
+                  </p>
+                )}
               </div>
             )
           })}
