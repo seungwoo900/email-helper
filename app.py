@@ -23,6 +23,11 @@ def split_sentences(text):
 
 @app.route('/analyze', methods=['POST', 'OPTIONS'])
 def analyze():
+
+    if request.method == 'OPTIONS':
+        # cors preflight request
+        return '', 200
+
     data = request.get_json() 
     raw = data.get('text', '')
     try:
