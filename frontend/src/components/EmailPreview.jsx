@@ -1,6 +1,8 @@
 import React from 'react'
+import {Clipboard} from 'lucide-react'
 
 export default function EmailPreview({ paragraphs = [] }) {
+
   return (
     <div className="space-y-8">
       {paragraphs.map((para, pi) => (
@@ -22,15 +24,29 @@ export default function EmailPreview({ paragraphs = [] }) {
               : 'bg-green-100'
 
             return (
-              <div key={si} className={`${bgClass} p-4 rounded-lg`}>
+              <div key={si} className={`${bgClass} p-4 rounded-lg relative group`}>
                 {/* Original sentence */}
                 <p className="font-medium text-gray-800">{s.original}</p>
 
                 {/* If there’s an edited version, show below */}
                 {editedText && (
-                  <p className="mt-2 text-gray-700">
-                    {editedText}
-                  </p>
+                  <div className="mt-2">
+                    <p className="text-gray-700 dark:text-gray-300 pr-8">
+                      {editedText}
+                    </p>
+
+                    {/* clipboard button: when group-hover, opacity 100 */}
+                    <button
+                      onClick={() => navigator.clipboard.writeText(editedText)}
+                      aria-label="Copy edited text"
+                      className="absolute top-4 right-4 p-1 rounded-full 
+                                 opacity-0 group-hover:opacity-100 
+                                 transition-opacity cursor-pointer
+                                 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <Clipboard size={16} />
+                    </button>
+                  </div>
                 )}
 
                 {/* Reason, if available */}
