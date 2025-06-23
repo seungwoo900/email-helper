@@ -16,6 +16,7 @@ PERPLEXITY_API_KEY = os.getenv('PERPLEXITY_API_KEY')
 PERPLEXITY_ENDPOINT = "https://api.perplexity.ai/chat/completions"
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 def split_sentences(text):
     return [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
