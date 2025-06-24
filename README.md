@@ -47,7 +47,6 @@ See grammar and style feedback, and get real-time suggestions to make your messa
 
 2. **Run Locally**
     ```bash
-    npm install
     npm run dev
     ```
     Navigate to [http://localhost:5173](http://localhost:5173) to test the app.
