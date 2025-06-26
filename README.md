@@ -5,6 +5,12 @@ See grammar and style feedback, and get real-time suggestions to make your messa
 
 ---
 
+## 🔎 Background
+
+Many non-native speakers struggle to write professional emails. This project aims to provide instant, line-by-line AI-powered grammar and tone feedback, helping users communicate more effectively.
+
+---
+
 ## 🚀 Live Demo
 
 [Try it live here!](https://email-helper-blue.vercel.app/)
